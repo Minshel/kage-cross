@@ -1,0 +1,24 @@
+[package]
+name = "mold"
+version = "26.9.18"
+edition = "2024"
+
+[lib]
+name = "mold"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mold"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive", "color"] }
+rustc-hash = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
