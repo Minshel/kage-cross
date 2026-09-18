@@ -27,11 +27,13 @@ pub enum Statement {
     Compile {
         instruction: String,
         inputs: Vec<String>,
+        order_only_inputs: Vec<String>,
         outputs: Vec<String>,
         line: u32,
     },
     Link {
         inputs: Vec<String>,
+        order_only_inputs: Vec<String>,
         outputs: Vec<String>,
         line: u32,
     },
@@ -51,19 +53,9 @@ pub struct BuildFile {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TokenKind {
-    Word,
-    String,
-    LBrace,
-    RBrace,
-    LBracket,
-    RBracket,
-    Eq,
-    Semi,
-    Colon,
-    Gt,
-    Pipe,
-    Comma,
-    Eof,
+    Word, String, LBrace, RBrace, LBracket, RBracket,
+    Eq, Semi, Colon, Gt, Pipe, Comma, Eof,
+    At,
 }
 
 #[derive(Debug, Clone)]
@@ -165,6 +157,7 @@ impl<'a> Lexer<'a> {
             b'>' => TokenKind::Gt,
             b'|' => TokenKind::Pipe,
             b',' => TokenKind::Comma,
+            b'@' => TokenKind::At,
             b'"' => return self.read_string(line, col),
             _ => return self.read_word(line, col),
         };
@@ -541,21 +534,34 @@ impl<'a> Parser<'a> {
     fn parse_compile(&mut self, build: &mut BuildFile) -> Result<()> {
         let kw = self.bump();
         let (instruction, _, _) = self.expect_word("instruction name")?;
-        let inputs = self.parse_word_list_until(&[TokenKind::Gt, TokenKind::Semi])?;
+
+        let inputs = self.parse_word_list_until(&[
+            TokenKind::Gt,
+            TokenKind::At,
+            TokenKind::Semi,
+        ])?;
         if inputs.is_empty() {
             return Err(MoldError::parse(
-                self.file,
-                kw.line,
-                kw.col,
+                self.file, kw.line, kw.col,
                 "compile requires at least one input",
             ));
         }
+
+        let mut order_only_inputs = Vec::new();
+        if self.eat(TokenKind::At) {
+            order_only_inputs = self.parse_word_list_until(&[
+                TokenKind::Gt,
+                TokenKind::Semi,
+            ])?;
+        }
+
         self.expect(TokenKind::Gt, "'>'")?;
         let outputs =
-            self.parse_word_list_until(&[TokenKind::Pipe, TokenKind::Semi])?;
+        self.parse_word_list_until(&[TokenKind::Pipe, TokenKind::Semi])?;
         if outputs.is_empty() {
             return Err(self.err_here("compile requires at least one output"));
         }
+
         let append_to = if self.eat(TokenKind::Pipe) {
             let (name, line, col) = self.expect_word("array name")?;
             Some((name, line, col))
@@ -563,22 +569,21 @@ impl<'a> Parser<'a> {
             None
         };
         self.expect(TokenKind::Semi, "';'")?;
+
         if let Some((arr, line, col)) = append_to {
             match build.arrays.get_mut(&arr) {
                 Some(list) => list.extend(outputs.iter().cloned()),
-                None => {
-                    return Err(MoldError::parse(
-                        self.file,
-                        line,
-                        col,
-                        format!("unknown array '{arr}'"),
-                    ));
-                }
+                None => return Err(MoldError::parse(
+                    self.file, line, col,
+                    format!("unknown array '{arr}'"),
+                )),
             }
         }
+
         build.statements.push(Statement::Compile {
             instruction,
             inputs,
+            order_only_inputs,
             outputs,
             line: kw.line,
         });
@@ -587,21 +592,33 @@ impl<'a> Parser<'a> {
 
     fn parse_link(&mut self, build: &mut BuildFile) -> Result<()> {
         let kw = self.bump();
-        let raw_inputs = self.parse_word_list_until(&[TokenKind::Gt, TokenKind::Semi])?;
+        let raw_inputs = self.parse_word_list_until(&[
+            TokenKind::Gt,
+            TokenKind::At,
+            TokenKind::Semi,
+        ])?;
         if raw_inputs.is_empty() {
             return Err(MoldError::parse(
-                self.file,
-                kw.line,
-                kw.col,
+                self.file, kw.line, kw.col,
                 "link requires at least one input or array",
             ));
         }
+
+        let mut order_only_inputs = Vec::new();
+        if self.eat(TokenKind::At) {
+            order_only_inputs = self.parse_word_list_until(&[
+                TokenKind::Gt,
+                TokenKind::Semi,
+            ])?;
+        }
+
         self.expect(TokenKind::Gt, "'>'")?;
         let outputs =
-            self.parse_word_list_until(&[TokenKind::Pipe, TokenKind::Semi])?;
+        self.parse_word_list_until(&[TokenKind::Pipe, TokenKind::Semi])?;
         if outputs.is_empty() {
             return Err(self.err_here("link requires at least one output"));
         }
+
         let append_to = if self.eat(TokenKind::Pipe) {
             let (name, line, col) = self.expect_word("array name")?;
             Some((name, line, col))
@@ -618,21 +635,20 @@ impl<'a> Parser<'a> {
                 inputs.push(w);
             }
         }
+
         if let Some((arr, line, col)) = append_to {
             match build.arrays.get_mut(&arr) {
                 Some(list) => list.extend(outputs.iter().cloned()),
-                None => {
-                    return Err(MoldError::parse(
-                        self.file,
-                        line,
-                        col,
-                        format!("unknown array '{arr}'"),
-                    ));
-                }
+                None => return Err(MoldError::parse(
+                    self.file, line, col,
+                    format!("unknown array '{arr}'"),
+                )),
             }
         }
+
         build.statements.push(Statement::Link {
             inputs,
+            order_only_inputs,
             outputs,
             line: kw.line,
         });

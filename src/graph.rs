@@ -22,6 +22,7 @@ pub struct Node {
 #[derive(Debug, Clone)]
 pub struct Edge {
     pub ins: Vec<NodeId>,
+    pub order_only_ins: Vec<NodeId>,
     pub outs: Vec<NodeId>,
     pub command: String,
     pub description: String,
@@ -162,6 +163,7 @@ impl Graph {
                 Statement::Compile {
                     instruction,
                     inputs,
+                    order_only_inputs,
                     outputs,
                     line,
                 } => {
@@ -173,10 +175,20 @@ impl Graph {
                             format!("unknown instruction '{instruction}'"),
                         )
                     })?;
-                    g.add_edge(build, &ctx, instruction, inst, inputs, outputs, *line)?;
+                    g.add_edge(
+                        build,
+                        &ctx,
+                        instruction,
+                        inst,
+                        inputs,
+                        order_only_inputs,
+                        outputs,
+                        *line,
+                    )?;
                 }
                 Statement::Link {
                     inputs,
+                    order_only_inputs,
                     outputs,
                     line,
                 } => {
@@ -188,7 +200,16 @@ impl Graph {
                             "link statement requires an 'instruction link { ... }'",
                         )
                     })?;
-                    g.add_edge(build, &ctx, "link", inst, inputs, outputs, *line)?;
+                    g.add_edge(
+                        build,
+                        &ctx,
+                        "link",
+                        inst,
+                        inputs,
+                        order_only_inputs,
+                        outputs,
+                        *line,
+                    )?;
                 }
             }
         }
@@ -220,12 +241,17 @@ impl Graph {
         inst_name: &str,
         inst: &crate::parse::Instruction,
         inputs: &[String],
+        order_only_inputs: &[String],
         outputs: &[String],
         line: u32,
     ) -> Result<()> {
         let mut ins_paths = Vec::new();
         for p in inputs {
             ins_paths.push(expand::expand(p, path_ctx)?);
+        }
+        let mut ooi_paths = Vec::new();
+        for p in order_only_inputs {
+            ooi_paths.push(expand::expand(p, path_ctx)?);
         }
         let mut out_paths = Vec::new();
         for p in outputs {
@@ -247,11 +273,11 @@ impl Graph {
         specials.insert("out".into(), expand::shell_join(&out_paths));
         specials.insert(
             "in_newline".into(),
-            ins_paths
-                .iter()
-                .map(|s| expand::shell_quote(s))
-                .collect::<Vec<_>>()
-                .join("\n"),
+                        ins_paths
+                        .iter()
+                        .map(|s| expand::shell_quote(s))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
         );
         if let Some(df) = &depfile {
             specials.insert("depfile".into(), expand::shell_quote(df));
@@ -277,7 +303,10 @@ impl Graph {
         };
 
         let ins: Vec<NodeId> = ins_paths.iter().map(|p| self.intern(p)).collect();
+        let order_only_ins: Vec<NodeId> =
+        ooi_paths.iter().map(|p| self.intern(p)).collect();
         let outs: Vec<NodeId> = out_paths.iter().map(|p| self.intern(p)).collect();
+
         let eid = self.edges.len();
         for &o in &outs {
             if let Some(prev) = self.nodes[o].producer {
@@ -292,18 +321,22 @@ impl Graph {
         for &i in &ins {
             self.nodes[i].consumers.push(eid);
         }
+        for &i in &order_only_ins {
+            self.nodes[i].consumers.push(eid);
+        }
 
         self.edges.push(Edge {
             ins,
+            order_only_ins,
             outs,
             command_hash: expand::hash_command(&command),
-            command,
-            description,
-            depformat: inst.depformat,
-            depfile,
-            restat: inst.restat,
-            instruction: inst_name.to_string(),
-            line,
+                        command,
+                        description,
+                        depformat: inst.depformat,
+                        depfile,
+                        restat: inst.restat,
+                        instruction: inst_name.to_string(),
+                        line,
         });
         Ok(())
     }
@@ -425,6 +458,13 @@ impl Graph {
                     }
                 }
             }
+            for &i in &edge.order_only_ins {
+                if let Some(p) = self.nodes[i].producer {
+                    if dirty[p] {
+                        w += 1;
+                    }
+                }
+            }
             wait[eid] = w;
         }
         let mut ready = Vec::new();
@@ -467,6 +507,9 @@ impl Graph {
             for &i in &self.edges[eid].ins {
                 self.walk_wanted(i, wanted, visiting)?;
             }
+            for &i in &self.edges[eid].order_only_ins {
+                self.walk_wanted(i, wanted, visiting)?;
+            }
         }
         visiting[node] = 2;
         Ok(())
@@ -489,22 +532,30 @@ impl Graph {
         }
         seen[eid] = true;
         let edge = &self.edges[eid];
+
         for &i in &edge.ins {
             if let Some(p) = self.nodes[i].producer {
                 self.compute_dirty(
-                    p,
-                    always_make,
-                    log,
-                    stat,
-                    implicit_paths,
-                    dirty,
-                    reasons,
-                    seen,
-                    explain,
+                    p, always_make, log, stat, implicit_paths,
+                    dirty, reasons, seen, explain,
                 )?;
             } else if stat.stat(&self.nodes[i].path).is_none() {
                 return Err(MoldError::build(format!(
                     "missing input '{}' needed by '{}'",
+                    self.nodes[i].path,
+                    self.nodes[edge.outs[0]].path
+                )));
+            }
+        }
+        for &i in &edge.order_only_ins {
+            if let Some(p) = self.nodes[i].producer {
+                self.compute_dirty(
+                    p, always_make, log, stat, implicit_paths,
+                    dirty, reasons, seen, explain,
+                )?;
+            } else if stat.stat(&self.nodes[i].path).is_none() {
+                return Err(MoldError::build(format!(
+                    "missing order-only input '{}' needed by '{}'",
                     self.nodes[i].path,
                     self.nodes[edge.outs[0]].path
                 )));
