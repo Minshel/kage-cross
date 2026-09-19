@@ -9,7 +9,7 @@ pub mod ast {
     pub use crate::parse::{BuildFile, DepFormat, Instruction, Statement, SPEC_EXAMPLE};
 }
 
-pub use error::{MoldError, Result};
+pub use error::{KageError, Result};
 pub use exec::BuildResult;
 pub use parse::{parse_file, parse_str};
 
@@ -38,7 +38,7 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            file: PathBuf::from("build.mold"),
+            file: PathBuf::from("build.kage"),
             directory: None,
             jobs: default_jobs(),
             dry_run: false,
@@ -73,7 +73,7 @@ pub fn run(opts: &Options) -> Result<BuildResult> {
         workdir.join(&opts.file)
     };
     if !file.is_file() {
-        return Err(MoldError::build(format!(
+        return Err(KageError::build(format!(
             "missing build file '{}'",
             file.display()
         )));

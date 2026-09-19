@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use rustc_hash::FxHashMap;
 
-use crate::error::{MoldError, Result};
+use crate::error::{KageError, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DepFormat {
@@ -87,8 +87,8 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn err(&self, line: u32, col: u32, msg: impl Into<String>) -> MoldError {
-        MoldError::parse(self.file, line, col, msg)
+    fn err(&self, line: u32, col: u32, msg: impl Into<String>) -> KageError {
+        KageError::parse(self.file, line, col, msg)
     }
 
     fn peek(&self) -> Option<u8> {
@@ -295,9 +295,9 @@ impl<'a> Parser<'a> {
         (t.line, t.col)
     }
 
-    fn err_here(&self, msg: impl Into<String>) -> MoldError {
+    fn err_here(&self, msg: impl Into<String>) -> KageError {
         let (line, col) = self.loc();
-        MoldError::parse(self.file, line, col, msg)
+        KageError::parse(self.file, line, col, msg)
     }
 
     fn expect(&mut self, kind: TokenKind, what: &str) -> Result<Token> {
@@ -385,7 +385,7 @@ impl<'a> Parser<'a> {
         let (value, _, _) = self.expect_word("tool path")?;
         self.expect(TokenKind::Semi, "';'")?;
         if build.tools.contains_key(&name) {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file,
                 line,
                 col,
@@ -403,7 +403,7 @@ impl<'a> Parser<'a> {
         let items = self.parse_comma_list()?;
         self.expect(TokenKind::Semi, "';'")?;
         if build.flags.contains_key(&name) {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file,
                 line,
                 col,
@@ -421,7 +421,7 @@ impl<'a> Parser<'a> {
         let (value, _, _) = self.expect_word("variable value")?;
         self.expect(TokenKind::Semi, "';'")?;
         if build.vars.contains_key(&name) {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file,
                 line,
                 col,
@@ -439,7 +439,7 @@ impl<'a> Parser<'a> {
         let items = self.parse_comma_list()?;
         self.expect(TokenKind::Semi, "';'")?;
         if build.arrays.contains_key(&name) {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file,
                 line,
                 col,
@@ -477,7 +477,7 @@ impl<'a> Parser<'a> {
                         "gcc" => DepFormat::Gcc,
                         "none" => DepFormat::None,
                         other => {
-                            return Err(MoldError::parse(
+                            return Err(KageError::parse(
                                 self.file,
                                 fl,
                                 fc,
@@ -491,7 +491,7 @@ impl<'a> Parser<'a> {
                         "true" | "yes" | "1" => true,
                         "false" | "no" | "0" => false,
                         other => {
-                            return Err(MoldError::parse(
+                            return Err(KageError::parse(
                                 self.file,
                                 fl,
                                 fc,
@@ -501,7 +501,7 @@ impl<'a> Parser<'a> {
                     };
                 }
                 other => {
-                    return Err(MoldError::parse(
+                    return Err(KageError::parse(
                         self.file,
                         fl,
                         fc,
@@ -512,7 +512,7 @@ impl<'a> Parser<'a> {
         }
         self.expect(TokenKind::RBrace, "'}'")?;
         if inst.command.is_empty() {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file,
                 line,
                 col,
@@ -520,7 +520,7 @@ impl<'a> Parser<'a> {
             ));
         }
         if build.instructions.contains_key(&name) {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file,
                 line,
                 col,
@@ -541,7 +541,7 @@ impl<'a> Parser<'a> {
             TokenKind::Semi,
         ])?;
         if inputs.is_empty() {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file, kw.line, kw.col,
                 "compile requires at least one input",
             ));
@@ -573,7 +573,7 @@ impl<'a> Parser<'a> {
         if let Some((arr, line, col)) = append_to {
             match build.arrays.get_mut(&arr) {
                 Some(list) => list.extend(outputs.iter().cloned()),
-                None => return Err(MoldError::parse(
+                None => return Err(KageError::parse(
                     self.file, line, col,
                     format!("unknown array '{arr}'"),
                 )),
@@ -598,7 +598,7 @@ impl<'a> Parser<'a> {
             TokenKind::Semi,
         ])?;
         if raw_inputs.is_empty() {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file, kw.line, kw.col,
                 "link requires at least one input or array",
             ));
@@ -639,7 +639,7 @@ impl<'a> Parser<'a> {
         if let Some((arr, line, col)) = append_to {
             match build.arrays.get_mut(&arr) {
                 Some(list) => list.extend(outputs.iter().cloned()),
-                None => return Err(MoldError::parse(
+                None => return Err(KageError::parse(
                     self.file, line, col,
                     format!("unknown array '{arr}'"),
                 )),
@@ -677,7 +677,7 @@ impl<'a> Parser<'a> {
         };
         let canon = path.canonicalize().unwrap_or(path.clone());
         if self.included.iter().any(|p| p == &canon) {
-            return Err(MoldError::parse(
+            return Err(KageError::parse(
                 self.file,
                 kw.line,
                 kw.col,
@@ -705,7 +705,7 @@ fn tokenize(src: &str, file: &str) -> Result<Vec<Token>> {
 }
 
 fn load_into(path: &Path, build: &mut BuildFile, included: &mut Vec<PathBuf>) -> Result<()> {
-    let src = fs::read_to_string(path).map_err(|e| MoldError::io(path, e))?;
+    let src = fs::read_to_string(path).map_err(|e| KageError::io(path, e))?;
     parse_into(&src, &path.display().to_string(), path, build, included)
 }
 
@@ -797,7 +797,7 @@ mod tests {
 
     #[test]
     fn parse_user_spec() {
-        let b = parse_str(SPEC_EXAMPLE, "build.mold").unwrap();
+        let b = parse_str(SPEC_EXAMPLE, "build.kage").unwrap();
         assert_eq!(b.tools.get("cc").unwrap(), "clang");
         assert_eq!(b.tools.get("nasm").unwrap(), "nasm");
         assert_eq!(b.tools.get("ld").unwrap(), "ld.lld");
@@ -857,7 +857,7 @@ mod tests {
             }
             compile c src/a.c > $(builddir)/a.o;
         "#;
-        let b = parse_str(src, "t.mold").unwrap();
+        let b = parse_str(src, "t.kage").unwrap();
         assert_eq!(b.vars.get("builddir").unwrap(), "build");
         assert_eq!(b.flags.get("cflags").unwrap()[1], "-std=c11");
         match &b.statements[0] {
@@ -874,9 +874,9 @@ mod tests {
             tool cc = gcc
             flags cflags = [];
         "#;
-        let err = parse_str(src, "bad.mold").unwrap_err();
+        let err = parse_str(src, "bad.kage").unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("bad.mold:"), "{msg}");
+        assert!(msg.contains("bad.kage:"), "{msg}");
         assert!(msg.contains("expected ';'"), "{msg}");
     }
 
@@ -887,7 +887,7 @@ mod tests {
             instruction c { command: "gcc -c $in -o $out"; }
             compile c src/a.c > a.o | nope;
         "#;
-        let err = parse_str(src, "bad.mold").unwrap_err();
+        let err = parse_str(src, "bad.kage").unwrap_err();
         assert!(err.to_string().contains("unknown array 'nope'"));
     }
 }

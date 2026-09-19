@@ -1,14 +1,14 @@
-# Contributing to mold
+# Contributing to kage
 
-`mold` is a small build-system project. Contributions should keep the language and implementation explicit rather than adding hidden conventions.
+`kage` is a small build-system project. Contributions should keep the language and implementation explicit rather than adding hidden conventions.
 
 ## Development setup
 
 Clone the repository and build it with Cargo:
 
 ```sh
-git clone https://github.com/drwxor/mold.git
-cd mold
+git clone https://github.com/drwxor/kage.git
+cd kage
 
 cargo build
 cargo test
@@ -54,7 +54,7 @@ For example:
 
 ## Changing the language
 
-Changes to the `build.mold` syntax should update all of these together:
+Changes to the `build.kage` syntax should update all of these together:
 
 1. parser implementation;
 2. parser tests;
@@ -93,7 +93,7 @@ Use small examples.
 
 Good:
 
-```mold
+```kage
 tool cc = clang;
 
 instruction c {
@@ -115,7 +115,7 @@ When adding a new syntax error, prefer a message that tells the user:
 - what was actually invalid;
 - where the problem occurred.
 
-For graph/build errors, keep the `mold:` prefix and include the relevant path/target when possible.
+For graph/build errors, keep the `kage:` prefix and include the relevant path/target when possible.
 
 ## CLI changes
 
@@ -147,11 +147,11 @@ A local build can create:
 
 ```text
 target/
-.mold_log
+.kage_log
 *.d
 ```
 
-The current repository ignores `target/` and Rust backup files, but does not currently ignore `.mold_log` or depfiles globally.
+The current repository ignores `target/` and Rust backup files, but does not currently ignore `.kage_log` or depfiles globally.
 
 Do not commit local build products.
 
@@ -170,6 +170,6 @@ Avoid mixing unrelated refactors with syntax or scheduler changes.
 
 ## Compatibility
 
-There is currently no formal compatibility guarantee for the `build.mold` language.
+There is currently no formal compatibility guarantee for the `build.kage` language.
 
 Until one is introduced, document intentional syntax changes and keep them easy to identify in the changelog.

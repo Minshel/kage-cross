@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use crate::error::{MoldError, Result};
+use crate::error::{KageError, Result};
 use crate::parse::{BuildFile, DepFormat};
 
 pub struct ExpandCtx<'a> {
@@ -40,7 +40,7 @@ impl<'a> ExpandCtx<'a> {
         if let Some(v) = self.arrays.get(name) {
             return Ok(shell_join(v));
         }
-        Err(MoldError::build(format!("unknown variable '{name}'")))
+        Err(KageError::build(format!("unknown variable '{name}'")))
     }
 }
 
@@ -77,7 +77,7 @@ pub fn expand(input: &str, ctx: &ExpandCtx<'_>) -> Result<String> {
 
 fn parse_ref(chars: &[char], mut i: usize) -> Result<(String, usize)> {
     if i >= chars.len() {
-        return Err(MoldError::build("dangling '$' in expansion".to_string()));
+        return Err(KageError::build("dangling '$' in expansion".to_string()));
     }
     let closer = match chars[i] {
         '(' => Some(')'),
@@ -89,7 +89,7 @@ fn parse_ref(chars: &[char], mut i: usize) -> Result<(String, usize)> {
         let start = i;
         while i < chars.len() && chars[i] != end {
             if !is_ident_char(chars[i], i == start) {
-                return Err(MoldError::build(format!(
+                return Err(KageError::build(format!(
                     "invalid variable name in '${}...'",
                     if end == ')' { '(' } else { '{' }
                 )));
@@ -97,11 +97,11 @@ fn parse_ref(chars: &[char], mut i: usize) -> Result<(String, usize)> {
             i += 1;
         }
         if i >= chars.len() || chars[i] != end {
-            return Err(MoldError::build("unclosed variable reference".to_string()));
+            return Err(KageError::build("unclosed variable reference".to_string()));
         }
         let name: String = chars[start..i].iter().collect();
         if name.is_empty() {
-            return Err(MoldError::build("empty variable reference".to_string()));
+            return Err(KageError::build("empty variable reference".to_string()));
         }
         Ok((name, i + 1))
     } else {
@@ -185,7 +185,7 @@ mod tests {
         specials: &'a FxHashMap<String, String>,
     ) -> ExpandCtx<'a> {
         ExpandCtx {
-            file: "build.mold",
+            file: "build.kage",
             tools,
             flags,
             vars,

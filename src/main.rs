@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 use clap::builder::styling::{AnsiColor, Effects, Styles};
 use clap::Parser;
-use mold::{default_jobs, Options};
+use kage::{default_jobs, Options};
 
 fn clap_styles() -> Styles {
     Styles::styled()
@@ -15,22 +15,22 @@ fn clap_styles() -> Styles {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "mold",
+    name = "kage",
     version,
     about = "A fast, ninja-inspired build system",
-    long_about = "mold reads a build.mold file, builds a dependency graph, and \
+    long_about = "kage reads a build.kage file, builds a dependency graph, and \
 runs compile/link instructions in parallel. Incremental rebuilds use mtimes, \
 command-line hashing, and GCC-style depfiles — the no-op path is the fast path.",
     styles = clap_styles(),
     after_help = "EXAMPLES:\n  \
-        mold\n  \
-        mold -j8 example_project\n  \
-        mold --explain\n  \
-        mold --clean\n  \
-        mold -C path/to/project -f build.mold"
+        kage\n  \
+        kage -j8 example_project\n  \
+        kage --explain\n  \
+        kage --clean\n  \
+        kage -C path/to/project -f build.kage"
 )]
 struct Cli {
-    #[arg(short, long, default_value = "build.mold", value_name = "FILE")]
+    #[arg(short, long, default_value = "build.kage", value_name = "FILE")]
     file: PathBuf,
 
     #[arg(short = 'C', long, value_name = "DIR")]
@@ -96,7 +96,7 @@ fn main() -> ExitCode {
         color,
         targets: cli.targets,
     };
-    match mold::run(&opts) {
+    match kage::run(&opts) {
         Ok(_) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("{err}");

@@ -1,18 +1,18 @@
-# mold
+# kage
 
 A fast, Ninja-inspired build system with a small declarative DSL.
 
-`mold` reads a `build.mold` file, builds a dependency graph, plans only the work that is actually dirty, and executes ready jobs in parallel.
+`kage` reads a `build.kage` file, builds a dependency graph, plans only the work that is actually dirty, and executes ready jobs in parallel.
 
 The project is written in Rust and is intentionally small: the build language describes tools, flags, instructions, dependencies, and outputs without introducing a large general-purpose configuration language.
 
 ## Status
 
-`mold` is under active development.
+`kage` is under active development.
 
 The current implementation already provides:
 
-- a lexer/parser for `build.mold`;
+- a lexer/parser for `build.kage`;
 - tools, flags, variables, arrays, instructions, includes, defaults, compile rules, and link rules;
 - `$in`, `$out`, `$in_newline`, and `$depfile` special variables;
 - shell-safe expansion for command arguments;
@@ -20,17 +20,17 @@ The current implementation already provides:
 - incremental rebuilds based on output existence, mtimes, GCC depfiles, and command hashes;
 - parallel execution with `-j`;
 - `--dry-run`, `--verbose`, `--quiet`, `--keep-going`, `--always-make`, `--explain`, `--clean`, `--list-targets`, and `--compdb`;
-- a persistent `.mold_log` used to detect command-line changes.
+- a persistent `.kage_log` used to detect command-line changes.
 
 The package version in the current repository is `26.9.18`. No stable release/compatibility policy is currently declared.
 
-## Why mold?
+## Why kage?
 
 Traditional build descriptions often become a mixture of shell fragments, implicit conventions, and build-system-specific syntax.
 
-`mold` keeps the build description explicit:
+`kage` keeps the build description explicit:
 
-```mold
+```kage
 tool cc = clang;
 
 flags cflags = [
@@ -63,11 +63,11 @@ The build graph comes directly from these statements. There is no separate rule 
 
 ### Build from source
 
-`mold` is a Cargo project using Rust edition 2024.
+`kage` is a Cargo project using Rust edition 2024.
 
 ```sh
-git clone https://github.com/drwxor/mold.git
-cd mold
+git clone https://github.com/drwxor/kage.git
+cd kage
 
 cargo build --release
 ```
@@ -75,7 +75,7 @@ cargo build --release
 The resulting binary is:
 
 ```text
-target/release/mold
+target/release/kage
 ```
 
 You can copy it into a directory on your `PATH` manually, or use the normal Cargo installation workflow:
@@ -102,16 +102,16 @@ Create a project:
 
 ```text
 example/
-  build.mold
+  build.kage
   src/
     main.c
     util.c
   include/
 ```
 
-A minimal `build.mold`:
+A minimal `build.kage`:
 
-```mold
+```kage
 tool cc = cc;
 
 flags cflags = [
@@ -142,68 +142,68 @@ default build/app;
 Build it:
 
 ```sh
-mold
+kage
 ```
 
 Build a named target:
 
 ```sh
-mold build/app
+kage build/app
 ```
 
 Run with four jobs:
 
 ```sh
-mold -j4
+kage -j4
 ```
 
 Show the commands instead of running them:
 
 ```sh
-mold -n
+kage -n
 ```
 
 Force a rebuild:
 
 ```sh
-mold -B
+kage -B
 ```
 
 Explain why targets are dirty:
 
 ```sh
-mold --explain
+kage --explain
 ```
 
 Remove generated outputs, depfiles, and the build log:
 
 ```sh
-mold --clean
+kage --clean
 ```
 
 List all produced targets:
 
 ```sh
-mold --list-targets
+kage --list-targets
 ```
 
 Generate a compilation database to stdout:
 
 ```sh
-mold --compdb > compile_commands.json
+kage --compdb > compile_commands.json
 ```
 
 ## Command line
 
 ```text
-mold [OPTIONS] [TARGET...]
+kage [OPTIONS] [TARGET...]
 ```
 
 ### Build-file and directory selection
 
 | Option | Meaning |
 | --- | --- |
-| `-f, --file <FILE>` | Build file to read. Default: `build.mold`. |
+| `-f, --file <FILE>` | Build file to read. Default: `build.kage`. |
 | `-C, --directory <DIR>` | Use `DIR` as the working directory before loading the build file. |
 
 ### Parallel execution
@@ -222,7 +222,7 @@ mold [OPTIONS] [TARGET...]
 | `-v, --verbose` | Print full expanded commands instead of descriptions. |
 | `-q, --quiet` | Suppress normal progress and summary output. |
 | `--explain` | Print the reason each dirty job needs a rebuild. |
-| `--clean` | Remove declared outputs, depfiles, and `.mold_log`. |
+| `--clean` | Remove declared outputs, depfiles, and `.kage_log`. |
 
 ### Inspection and tooling
 
@@ -235,9 +235,9 @@ mold [OPTIONS] [TARGET...]
 Targets can be supplied after the options:
 
 ```sh
-mold build/app
-mold build/main.o
-mold app
+kage build/app
+kage build/main.o
+kage app
 ```
 
 A unique produced output can be addressed by its full path or by a unique matching suffix/file name.
@@ -248,7 +248,7 @@ The planner considers a rule dirty when one of the relevant conditions is true:
 
 - an output does not exist;
 - a GCC depfile required by the rule does not exist;
-- the output has no recorded command in `.mold_log`;
+- the output has no recorded command in `.kage_log`;
 - the expanded command changed;
 - an explicit input is dirty;
 - an explicit input is newer than an output;
@@ -258,7 +258,7 @@ The planner considers a rule dirty when one of the relevant conditions is true:
 
 For GCC depfiles, headers reported by the compiler become implicit inputs for the next planning pass.
 
-The build log is stored as `.mold_log` in the working directory. It records a 64-bit hash of the fully expanded command for each output.
+The build log is stored as `.kage_log` in the working directory. It records a 64-bit hash of the fully expanded command for each output.
 
 ## Dependency ordering
 
@@ -266,7 +266,7 @@ Normal inputs and order-only inputs both participate in graph traversal and job 
 
 This form:
 
-```mold
+```kage
 compile c src/main.c @ generated_headers > build/main.o;
 ```
 
@@ -278,7 +278,7 @@ The `@` inputs are not used by the timestamp comparison for the rule itself; the
 
 An instruction defines the command template used by a group of build statements:
 
-```mold
+```kage
 instruction c {
     command: "$(cc) $(cflags) -c $in -o $out";
     description: "CC $in";
@@ -299,7 +299,7 @@ See [SYNTAX.md](SYNTAX.md) for the full language reference.
 
 Arrays are useful for collecting outputs:
 
-```mold
+```kage
 array objects = [];
 
 compile c src/a.c > build/a.o | objects;
@@ -313,13 +313,13 @@ The `| objects` form appends the rule's outputs to an already-declared array.
 
 On a `link` statement, an input token matching a declared array name expands to the array's contents:
 
-```mold
+```kage
 link objects > build/app;
 ```
 
 Arrays can also be expanded inside commands:
 
-```mold
+```kage
 command: "ar rcs $archive $objects";
 ```
 
@@ -327,8 +327,8 @@ command: "ar rcs $archive $objects";
 
 Build files can include other build files:
 
-```mold
-include config.mold;
+```kage
+include config.kage;
 ```
 
 Relative include paths are resolved relative to the file containing the `include` statement.
@@ -342,7 +342,7 @@ Include cycles are rejected.
 Example:
 
 ```sh
-mold --compdb > compile_commands.json
+kage --compdb > compile_commands.json
 ```
 
 Each generated entry contains:
@@ -357,11 +357,11 @@ Each generated entry contains:
 The current implementation creates these files as part of normal builds:
 
 ```text
-.mold_log
+.kage_log
 <output>.d          # when depformat is gcc and no custom depfile is set
 ```
 
-The repository's current `.gitignore` does not ignore these files automatically. Projects using `mold` may want to add them to their own ignore rules.
+The repository's current `.gitignore` does not ignore these files automatically. Projects using `kage` may want to add them to their own ignore rules.
 
 ## Source layout
 
@@ -381,7 +381,7 @@ See [DESIGN.md](DESIGN.md) for how these pieces fit together.
 
 ## Documentation
 
-- [SYNTAX.md](SYNTAX.md) — complete `build.mold` language reference.
+- [SYNTAX.md](SYNTAX.md) — complete `build.kage` language reference.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — development workflow and contribution notes.
 
 ## License

@@ -150,6 +150,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "kage"
+version = "26.9.18"
+dependencies = [
+ "clap",
+ "rustc-hash",
+ "tempfile",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -160,15 +169,6 @@ name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
-
-[[package]]
-name = "mold"
-version = "26.9.18"
-dependencies = [
- "clap",
- "rustc-hash",
- "tempfile",
-]
 
 [[package]]
 name = "once_cell"

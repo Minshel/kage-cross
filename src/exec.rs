@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
 
-use crate::error::{MoldError, Result};
+use crate::error::{KageError, Result};
 use crate::graph::{BuildLog, EdgeId, Graph, Plan, StatCache};
 use crate::Options;
 
@@ -91,7 +91,7 @@ pub fn execute(
 
     if total == 0 {
         if !opts.quiet {
-            eprintln!("{}", pal.dim("mold: nothing to do."));
+            eprintln!("{}", pal.dim("kage: nothing to do."));
         }
         return Ok(BuildResult {
             ran: 0,
@@ -107,7 +107,7 @@ pub fn execute(
                 eprintln!(
                     "{}",
                     pal.dim(&format!(
-                        "mold: rebuild {}: {r}",
+                        "kage: rebuild {}: {r}",
                         graph.edges[eid].description
                     ))
                 );
@@ -253,7 +253,7 @@ pub fn execute(
                 "{}",
                 pal.green(&format!(
                     "{} built {ran} {} in {}",
-                    pal.bold("mold:"),
+                    pal.bold("kage:"),
                     if ran == 1 { "target" } else { "targets" },
                     format_elapsed(elapsed_ms)
                 ))
@@ -261,12 +261,12 @@ pub fn execute(
         } else {
             eprintln!(
                 "{}",
-                pal.red(&format!("mold: {failed} job(s) failed"))
+                pal.red(&format!("kage: {failed} job(s) failed"))
             );
         }
     }
     if failed > 0 {
-        return Err(MoldError::build(format!("{failed} job(s) failed")));
+        return Err(KageError::build(format!("{failed} job(s) failed")));
     }
     Ok(BuildResult {
         ran,
@@ -430,12 +430,12 @@ pub fn clean(graph: &Graph, opts: &Options) -> Result<BuildResult> {
             let _ = fs::remove_file(p);
         }
     }
-    let log = graph.workdir.join(".mold_log");
+    let log = graph.workdir.join(".kage_log");
     let _ = fs::remove_file(&log);
     if !opts.quiet {
         eprintln!(
             "{}",
-            pal.green(&format!("mold: removed {removed} output(s)"))
+            pal.green(&format!("kage: removed {removed} output(s)"))
         );
     }
     Ok(BuildResult {

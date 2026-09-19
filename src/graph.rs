@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use rustc_hash::FxHashMap;
 
 use crate::depfile;
-use crate::error::{MoldError, Result};
+use crate::error::{KageError, Result};
 use crate::expand::{self, ExpandCtx};
 use crate::parse::{BuildFile, DepFormat, Statement};
 
@@ -104,7 +104,7 @@ pub struct BuildLog {
 
 impl BuildLog {
     pub fn load(workdir: &Path) -> Self {
-        let path = workdir.join(".mold_log");
+        let path = workdir.join(".kage_log");
         let mut entries = FxHashMap::default();
         if let Ok(text) = fs::read_to_string(&path) {
             for line in text.lines() {
@@ -132,15 +132,15 @@ impl BuildLog {
     }
 
     pub fn save(&self) -> Result<()> {
-        let mut lines = vec!["# mold log v1".to_string()];
+        let mut lines = vec!["# kage log v1".to_string()];
         let mut items: Vec<_> = self.entries.iter().collect();
         items.sort_by(|a, b| a.0.cmp(b.0));
         for (p, h) in items {
             lines.push(format!("{h:016x}\t{p}"));
         }
         let tmp = self.path.with_extension("log.tmp");
-        fs::write(&tmp, lines.join("\n") + "\n").map_err(|e| MoldError::io(&tmp, e))?;
-        fs::rename(&tmp, &self.path).map_err(|e| MoldError::io(&self.path, e))?;
+        fs::write(&tmp, lines.join("\n") + "\n").map_err(|e| KageError::io(&tmp, e))?;
+        fs::rename(&tmp, &self.path).map_err(|e| KageError::io(&self.path, e))?;
         Ok(())
     }
 }
@@ -168,7 +168,7 @@ impl Graph {
                     line,
                 } => {
                     let inst = build.instructions.get(instruction).ok_or_else(|| {
-                        MoldError::parse(
+                        KageError::parse(
                             &build.file,
                             *line,
                             1,
@@ -193,7 +193,7 @@ impl Graph {
                     line,
                 } => {
                     let inst = build.instructions.get("link").ok_or_else(|| {
-                        MoldError::parse(
+                        KageError::parse(
                             &build.file,
                             *line,
                             1,
@@ -226,7 +226,7 @@ impl Graph {
             for name in &build.defaults {
                 let expanded = expand::expand(name, &ctx)?;
                 let id = g.find_target(&expanded).ok_or_else(|| {
-                    MoldError::build(format!("unknown default target '{expanded}'"))
+                    KageError::build(format!("unknown default target '{expanded}'"))
                 })?;
                 g.defaults.push(id);
             }
@@ -258,7 +258,7 @@ impl Graph {
             out_paths.push(expand::expand(p, path_ctx)?);
         }
         if ins_paths.is_empty() || out_paths.is_empty() {
-            return Err(MoldError::build(format!(
+            return Err(KageError::build(format!(
                 "edge at line {line} is missing inputs or outputs"
             )));
         }
@@ -310,7 +310,7 @@ impl Graph {
         let eid = self.edges.len();
         for &o in &outs {
             if let Some(prev) = self.nodes[o].producer {
-                return Err(MoldError::build(format!(
+                return Err(KageError::build(format!(
                     "multiple rules produce '{}': lines {} and {line}",
                     self.nodes[o].path,
                     self.edges[prev].line
@@ -381,7 +381,7 @@ impl Graph {
     pub fn resolve_targets(&self, names: &[String]) -> Result<Vec<NodeId>> {
         if names.is_empty() {
             if self.defaults.is_empty() {
-                return Err(MoldError::build("no targets to build"));
+                return Err(KageError::build("no targets to build"));
             }
             return Ok(self.defaults.clone());
         }
@@ -389,7 +389,7 @@ impl Graph {
         for n in names {
             let id = self
                 .find_target(n)
-                .ok_or_else(|| MoldError::build(format!("unknown target '{n}'")))?;
+                .ok_or_else(|| KageError::build(format!("unknown target '{n}'")))?;
             out.push(id);
         }
         Ok(out)
@@ -493,7 +493,7 @@ impl Graph {
     ) -> Result<()> {
         match visiting[node] {
             1 => {
-                return Err(MoldError::build(format!(
+                return Err(KageError::build(format!(
                     "dependency cycle involving '{}'",
                     self.nodes[node].path
                 )));
@@ -540,7 +540,7 @@ impl Graph {
                     dirty, reasons, seen, explain,
                 )?;
             } else if stat.stat(&self.nodes[i].path).is_none() {
-                return Err(MoldError::build(format!(
+                return Err(KageError::build(format!(
                     "missing input '{}' needed by '{}'",
                     self.nodes[i].path,
                     self.nodes[edge.outs[0]].path
@@ -554,7 +554,7 @@ impl Graph {
                     dirty, reasons, seen, explain,
                 )?;
             } else if stat.stat(&self.nodes[i].path).is_none() {
-                return Err(MoldError::build(format!(
+                return Err(KageError::build(format!(
                     "missing order-only input '{}' needed by '{}'",
                     self.nodes[i].path,
                     self.nodes[edge.outs[0]].path
@@ -618,7 +618,7 @@ impl Graph {
                 match stat.stat(path) {
                     None => {
                         if self.nodes[i].producer.is_none() {
-                            return Err(MoldError::build(format!(
+                            return Err(KageError::build(format!(
                                 "missing input '{path}' needed by '{}'",
                                 self.nodes[edge.outs[0]].path
                             )));

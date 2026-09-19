@@ -1,6 +1,6 @@
-# mold syntax
+# kage syntax
 
-This document is the reference for the current `build.mold` language implemented by the parser in `src/parse.rs`.
+This document is the reference for the current `build.kage` language implemented by the parser in `src/parse.rs`.
 
 The language is intentionally small. Statements end with `;`, blocks use `{ ... }`, lists use `[ ... ]`, and command templates use `$` expansion.
 
@@ -27,7 +27,7 @@ Statements may be separated by spaces or newlines.
 
 Comments are supported in two forms:
 
-```mold
+```kage
 # comment
 // comment
 ```
@@ -40,7 +40,7 @@ Unquoted words may contain the characters accepted by the lexer, including lette
 
 Quoted strings use double quotes:
 
-```mold
+```kage
 "some text"
 ```
 
@@ -59,7 +59,7 @@ Unknown escapes keep the backslash and following character.
 
 Example:
 
-```mold
+```kage
 description: "compile\t$in";
 ```
 
@@ -75,7 +75,7 @@ tool <name> = <value>;
 
 Examples:
 
-```mold
+```kage
 tool cc = clang;
 tool asm = nasm;
 tool ld = ld.lld;
@@ -86,7 +86,7 @@ The value is a single word or quoted string.
 
 Use a tool in an expansion:
 
-```mold
+```kage
 command: "$(cc) -c $in -o $out";
 ```
 
@@ -102,7 +102,7 @@ flags <name> = [ <item> {, <item>} [,] ];
 
 Examples:
 
-```mold
+```kage
 flags cflags = [
     -Wall,
     -Wextra,
@@ -114,7 +114,7 @@ flags ldflags = [];
 
 A trailing comma is allowed:
 
-```mold
+```kage
 flags cflags = [
     -Wall,
     -Wextra,
@@ -125,7 +125,7 @@ Flags are shell-quoted when expanded as a group.
 
 For example:
 
-```mold
+```kage
 flags cflags = [
     "-DNAME=value with spaces",
     -O2
@@ -148,14 +148,14 @@ var <name> = <value>;
 
 Example:
 
-```mold
+```kage
 var builddir = build;
 var output = build/app;
 ```
 
 Use it as:
 
-```mold
+```kage
 compile c src/main.c > $(builddir)/main.o;
 ```
 
@@ -178,13 +178,13 @@ array <name> = [ <item> {, <item>} [,] ];
 
 Example:
 
-```mold
+```kage
 array objects = [];
 ```
 
 Arrays can be expanded in commands:
 
-```mold
+```kage
 command: "ar rcs $archive $objects";
 ```
 
@@ -194,7 +194,7 @@ The array is shell-quoted item by item and joined with spaces.
 
 A `compile` or `link` statement can append its outputs to an existing array:
 
-```mold
+```kage
 compile c src/main.c > build/main.o | objects;
 compile c src/util.c > build/util.o | objects;
 ```
@@ -207,7 +207,7 @@ The array must already exist.
 
 On a `link` statement, an input token that exactly matches a declared array name is expanded to all elements of that array:
 
-```mold
+```kage
 link objects > build/app;
 ```
 
@@ -233,7 +233,7 @@ instruction <name> {
 
 Example:
 
-```mold
+```kage
 instruction c {
     command: "$(cc) $(cflags) -MMD -MF $depfile -c $in -o $out";
     description: "CC $in";
@@ -251,7 +251,7 @@ Commands are executed as:
 /bin/sh -c <expanded command>
 ```
 
-The shell's current directory is the mold working directory.
+The shell's current directory is the kage working directory.
 
 ### `description`
 
@@ -268,7 +268,7 @@ If omitted:
 
 Supported values:
 
-```mold
+```kage
 depformat: gcc;
 depformat: none;
 ```
@@ -283,7 +283,7 @@ Optional path for the dependency file.
 
 Example:
 
-```mold
+```kage
 instruction c {
     command: "$(cc) -MMD -MF $depfile -c $in -o $out";
     depformat: gcc;
@@ -324,13 +324,13 @@ compile <instruction> <input>... [@ <order-only-input>...] > <output>... [| <arr
 
 Example:
 
-```mold
+```kage
 compile c src/main.c > build/main.o;
 ```
 
 Multiple inputs and outputs are allowed:
 
-```mold
+```kage
 compile merge a.txt b.txt > build/out.bin;
 ```
 
@@ -340,7 +340,7 @@ At least one input and one output are required.
 
 Use `@` to introduce order-only inputs:
 
-```mold
+```kage
 compile c src/main.c @ generated_headers > build/main.o;
 ```
 
@@ -350,7 +350,7 @@ Order-only inputs participate in dependency ordering and must exist or have a pr
 
 Use `|` to append outputs to an existing array:
 
-```mold
+```kage
 array objects = [];
 
 compile c src/a.c > build/a.o | objects;
@@ -369,13 +369,13 @@ link <input-or-array>... [@ <order-only-input>...] > <output>... [| <array>];
 
 Example:
 
-```mold
+```kage
 link objects > build/app;
 ```
 
 Unlike `compile`, a `link` statement always uses the instruction named exactly `link`:
 
-```mold
+```kage
 instruction link {
     command: "$(cc) $in -o $out";
 }
@@ -395,21 +395,21 @@ default <target>...;
 
 Example:
 
-```mold
+```kage
 default build/app;
 ```
 
 More than one default target is allowed:
 
-```mold
+```kage
 default build/app build/tests;
 ```
 
 When at least one `default` statement exists, those targets are used.
 
-When no explicit defaults exist, mold automatically chooses produced outputs that have no consumers in the graph.
+When no explicit defaults exist, kage automatically chooses produced outputs that have no consumers in the graph.
 
-If no targets can be resolved, `mold` reports `no targets to build`.
+If no targets can be resolved, `kage` reports `no targets to build`.
 
 ## 11. `include`
 
@@ -421,8 +421,8 @@ include <path>;
 
 Example:
 
-```mold
-include config/common.mold;
+```kage
+include config/common.kage;
 ```
 
 Relative paths are resolved relative to the file containing the `include` statement.
@@ -445,7 +445,7 @@ ${name}
 
 Example:
 
-```mold
+```kage
 tool cc = clang;
 
 instruction c {
@@ -491,7 +491,7 @@ The build graph supplies these variables when expanding an instruction command o
 
 All normal inputs, shell-quoted and joined with spaces.
 
-```mold
+```kage
 command: "tool $in -o $out";
 ```
 
@@ -499,7 +499,7 @@ command: "tool $in -o $out";
 
 All outputs, shell-quoted and joined with spaces.
 
-```mold
+```kage
 command: "tool $in -o $out";
 ```
 
@@ -533,18 +533,18 @@ Other values are wrapped in single quotes, with embedded single quotes escaped f
 
 This is important for spaces and shell metacharacters in file names and flag values.
 
-The command itself is still arbitrary shell code. `mold` does not parse the command into individual argv elements.
+The command itself is still arbitrary shell code. `kage` does not parse the command into individual argv elements.
 
 ## 15. Paths and working directory
 
-A relative path is interpreted relative to mold's working directory.
+A relative path is interpreted relative to kage's working directory.
 
 By default the working directory is the current directory.
 
 With:
 
 ```sh
-mold -C path/to/project
+kage -C path/to/project
 ```
 
 the selected directory becomes the build working directory.
@@ -553,7 +553,7 @@ Build-file paths given with `-f` are resolved relative to that working directory
 
 ## 16. Incremental semantics
 
-For each wanted edge, mold may rebuild when:
+For each wanted edge, kage may rebuild when:
 
 - an output is missing;
 - a GCC depfile is missing;
@@ -570,14 +570,14 @@ The current command hash is a 64-bit FNV-1a-style hash of the fully expanded com
 
 With:
 
-```mold
+```kage
 instruction c {
     command: "$(cc) -MMD -MF $depfile -c $in -o $out";
     depformat: gcc;
 }
 ```
 
-mold reads the generated depfile on the next invocation.
+kage reads the generated depfile on the next invocation.
 
 The parser supports Make-style:
 
